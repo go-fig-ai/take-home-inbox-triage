@@ -103,3 +103,60 @@ Questions before you start? Email us. Once you open the scaffold, the clock is y
 ---
 
 <!-- ↓↓↓ CANDIDATE: add your "README the client could read" section here ↓↓↓ -->
+
+---
+
+## Inbox Triage — Client Guide
+
+### What it does
+
+The triage agent reads your incoming email inbox, classifies each message into one of four categories, and proposes the appropriate action for a human to approve before anything is sent or recorded:
+
+| Category | Action |
+|---|---|
+| `billing` | Drafts a reply to the customer |
+| `bug_report` | Sends an alert to `#engineering` on Slack |
+| `sales_lead` | Drafts a reply **and** creates a CRM lead |
+| `spam` | Logged and dropped — no action taken |
+
+No email is sent, no CRM record is created, and no Slack alert is posted until a human explicitly approves it. The agent proposes; you decide.
+
+### How to run it
+
+```bash
+# 1. Install dependencies
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Configure environment
+cp env.example .env
+# Edit .env and add your GROQ_API_KEY (free at console.groq.com)
+
+# 3. Start the mock API (terminal 1)
+make serve
+
+# 4. Run the triage agent (terminal 2)
+python src/run.py
+```
+
+For each proposed action, you'll see the email, the action type, the reason, and the full payload — then a prompt to approve or deny. After the run, inspect all side effects with:
+
+```bash
+make audit
+```
+
+To run the test suite (no live API or LLM key required):
+
+```bash
+pytest tests/
+```
+
+### The design decision we're proudest of
+
+**Two independent layers of write protection.**
+
+The agent holds a read token and a write token separately. The read token is used to fetch the inbox — and that's all it can ever do. Write operations (sending mail, creating CRM records, posting Slack alerts) require the write token, which is only passed into the HTTP call *after* a human approves the action.
+
+On top of that, the `execute()` function is a hard gate: if `approved=False`, it returns immediately without touching the network — regardless of what token is available. Spam emails never reach `execute()` at all because `plan_actions("spam", ...)` returns an empty list.
+
+The result: unauthorised writes are blocked structurally (no token → no HTTP call possible) *and* behaviourally (no approval → execute returns None). Both layers must be bypassed for anything to go out, and neither can be bypassed by a misbehaving LLM or a prompt injection attack.
