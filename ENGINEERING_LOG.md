@@ -36,6 +36,7 @@ Flipped the rule to prefer `sales_lead` and re-ran the five-sample check: 5/5 `s
 - **LLM-drafted reply bodies**: replies are currently templated strings. In production the LLM would draft a personalised reply per email using the original body as context. Cut because the routing and HITL logic is the core of the skill — reply quality is a content problem, not an architecture problem.
 - **Retry logic**: no retries on Groq API failures. A production skill would retry with backoff on transient errors.
 - **Structured logging**: print statements suffice for a demo. A real deployment would emit structured JSON logs per email for observability.
+- **Idempotency**: the mock API accumulates side effects in memory across runs — restarting the server is the only way to reset the audit log. A production skill would deduplicate on email ID to prevent double-sends across retries or re-runs.
 
 ## The design decision I'm proudest of
 
