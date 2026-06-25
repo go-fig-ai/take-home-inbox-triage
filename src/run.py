@@ -28,7 +28,10 @@ def interactive_approver(email: dict, action) -> bool:
     print(f"  Why     : {action.rationale}")
     print(f"  Payload : {action.payload}")
     print("─" * 60)
-    answer = input("  Approve? [y/N] ").strip().lower()
+    try:
+        answer = input("  Approve? [y/N] ").strip().lower()
+    except EOFError:
+        answer = "n"
     return answer == "y"
 
 
